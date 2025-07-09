@@ -1,15 +1,25 @@
 # health_sync_plugin
 
-A new Flutter plugin project.
+A Flutter plugin to sync health data from Health Connect-compatible apps on Android.
+
+## Features
+
+- Discover installed Health Connect-compatible provider apps (Google Fit, Samsung Health, etc.).
+- Sync health data like steps, heart rate, blood pressure, glucose, and more.
+- Background syncing using a foreground service with Flutter Foreground Task.
+- Stores daily averages of health data.
+- Supports permission handling for Health Connect and sensors.
+- Works seamlessly with Firebase for cloud storage (optional).
 
 ## Getting Started
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+This plugin provides platform-specific implementations for Android using Health Connect APIs. You can integrate it into your Flutter app to access and sync user health data from multiple providers.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Installation
 
+Add this plugin to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  health_sync_plugin:
+    path: ../path_to_plugin  # Or use your plugin's hosted location
