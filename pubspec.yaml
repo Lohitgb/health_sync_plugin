@@ -1,7 +1,7 @@
 name: health_sync_plugin
 description: A Flutter plugin to sync health data from Health Connect-compatible apps.
 version: 0.0.1
-# homepage: https://github.com/your-username/health_sync_plugin
+homepage: https://github.com/Lohitgb/health_sync_plugin.git
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
