@@ -15,7 +15,7 @@ class HealthSyncPlugin {
     print("🟢 Starting foreground service...");
     await FlutterForegroundTask.startService(
       notificationTitle: 'Noscura Sync Running',
-      notificationText: 'Health data is syncing in the background.',
+      notificationText: 'health data is syncing in the background.',
       callback: startCallback,
     );
 
@@ -32,11 +32,5 @@ class HealthSyncPlugin {
 
   static Future<List<String>> getAvailableProviders() async {
     return await HealthConnectProvidersService.getAvailableProviders();
-  }
-
-  static Future<void> requestHealthPermissions() async {
-    print("🟡 requestHealthPermissions called");
-    await HealthConnectProvidersService.requestHealthPermissions();
-    print("✅ Health Connect permissions requested.");
   }
 }
