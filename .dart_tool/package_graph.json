@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "health_sync_plugin",
-      "version": "0.0.1",
+      "version": "0.0.3",
       "dependencies": [
         "awesome_notifications",
         "cloud_firestore",
