@@ -5,66 +5,60 @@ class HealthHistoryFetcher {
   final Health _health = Health();
 
   Future<List<Map<String, dynamic>>> getHealthHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final selectedProviders = prefs.getStringList('selected_providers') ?? [];
-    final selectedHealthTypes =
-        prefs.getStringList('selected_health_types') ?? [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final selectedProviders = prefs.getStringList('selected_providers') ?? [];
 
-    final List<HealthDataType> types = [];
+      // Read all supported types
+      final types = <HealthDataType>[
+        HealthDataType.HEART_RATE,
+        HealthDataType.STEPS,
+        HealthDataType.BLOOD_GLUCOSE,
+        HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
+        HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
+      ];
 
-    if (selectedHealthTypes.contains('HEART_RATE')) {
-      types.add(HealthDataType.HEART_RATE);
-    }
-    if (selectedHealthTypes.contains('STEPS')) {
-      types.add(HealthDataType.STEPS);
-    }
-    if (selectedHealthTypes.contains('BLOOD_PRESSURE')) {
-      types.add(HealthDataType.BLOOD_PRESSURE_SYSTOLIC);
-      types.add(HealthDataType.BLOOD_PRESSURE_DIASTOLIC);
-    }
-    if (selectedHealthTypes.contains('BLOOD_GLUCOSE')) {
-      types.add(HealthDataType.BLOOD_GLUCOSE);
-    }
+      final permissions = List.filled(types.length, HealthDataAccess.READ);
 
-    final permissions = List.filled(types.length, HealthDataAccess.READ);
+      bool? hasPermission =
+          await _health.hasPermissions(types, permissions: permissions);
+      if (hasPermission != true) {
+        hasPermission = await _health.requestAuthorization(
+          types,
+          permissions: permissions,
+        );
+      }
 
-    bool? hasPermission =
-        await _health.hasPermissions(types, permissions: permissions);
-    if (hasPermission != true) {
-      hasPermission =
-          await _health.requestAuthorization(types, permissions: permissions);
-    }
+      if (hasPermission != true) return [];
 
-    if (hasPermission != true) {
+      final now = DateTime.now();
+      final startTime = now.subtract(const Duration(hours: 24));
+
+      final rawData = await _health.getHealthDataFromTypes(
+        startTime: startTime,
+        endTime: now,
+        types: types,
+      );
+
+      await _health.removeDuplicates(rawData);
+
+      // Filter by selected providers (if any)
+      final filtered = rawData.where((data) {
+        if (selectedProviders.isEmpty) return true;
+        final source = data.sourceName.toLowerCase();
+        return selectedProviders.any((p) => source.contains(p.toLowerCase()));
+      }).toList();
+
+      return filtered.map((data) {
+        return {
+          'type': data.typeString,
+          'value': data.value.toString(),
+          'source': data.sourceName,
+          'timestamp': data.dateFrom.toIso8601String(),
+        };
+      }).toList();
+    } catch (e) {
       return [];
     }
-
-    final now = DateTime.now();
-    final startTime = now.subtract(const Duration(hours: 24));
-
-    final healthData = await _health.getHealthDataFromTypes(
-      startTime: startTime,
-      endTime: now,
-      types: types,
-    );
-
-    await _health.removeDuplicates(healthData);
-
-    final List<HealthDataPoint> filtered = healthData.where((data) {
-      final source = data.sourceName.toLowerCase();
-      if (selectedProviders.isEmpty) return true;
-      return selectedProviders.any((p) => source.contains(p.toLowerCase()));
-    }).toList();
-
-    final List<Map<String, dynamic>> mapped = filtered.map((data) {
-      return {
-        'type': data.typeString,
-        'value': data.value.toString(),
-        'source': data.sourceName,
-        'timestamp': data.dateFrom.toIso8601String(),
-      };
-    }).toList();
-
-    return mapped;
   }
 }

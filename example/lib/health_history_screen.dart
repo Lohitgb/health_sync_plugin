@@ -43,14 +43,11 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Health History'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text("Health Connect History")),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _healthData.isEmpty
-              ? const Center(child: Text('No health data available.'))
+              ? const Center(child: Text("No health data available"))
               : ListView.builder(
                   itemCount: _healthData.length,
                   itemBuilder: (_, index) => _buildItem(_healthData[index]),
