@@ -3,6 +3,7 @@ import 'services/health_sync_service.dart';
 import 'services/health_average_service.dart';
 import 'platform/health_connect_channel.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'services/health_history_service.dart';
 
 class HealthSyncPlugin {
   static Future<void> startForegroundService() async {
@@ -32,5 +33,10 @@ class HealthSyncPlugin {
 
   static Future<List<String>> getAvailableProviders() async {
     return await HealthConnectProvidersService.getAvailableProviders();
+  }
+
+  static Future<List<Map<String, dynamic>>> getHealthHistoryData() async {
+    final fetcher = HealthHistoryFetcher();
+    return await fetcher.getHealthHistory();
   }
 }
