@@ -1,3 +1,5 @@
+import 'package:health_sync_plugin/src/helper/encrypt_decrypt_service.dart';
+
 import 'services/foreground_task_service.dart';
 import 'services/health_sync_service.dart';
 import 'services/health_average_service.dart';
@@ -38,5 +40,11 @@ class HealthSyncPlugin {
   static Future<List<Map<String, dynamic>>> getHealthHistoryData() async {
     final fetcher = HealthHistoryFetcher();
     return await fetcher.getHealthHistory();
+  }
+    static Future<String> decryptHealthValue({
+    required String encryptedData,
+    required String iv,
+  }) async {
+    return await EncryptService.decryptText(encryptedData, iv);
   }
 }
