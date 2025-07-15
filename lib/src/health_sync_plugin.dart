@@ -23,6 +23,10 @@ class HealthSyncPlugin {
     await HealthSyncService.syncHealthData();
   }
 
+    static Future<void> manualSyncHealthData() async {
+    await HealthSyncService.manualSyncHealthData(); 
+  }
+
   static Future<void> storeDailyAverage() async {
     await HealthAverageService.storeDailyAverages();
   }
