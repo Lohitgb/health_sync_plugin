@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:health/health.dart';
+import 'package:health_sync_plugin/src/helper/encrypt_decrypt_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HealthSyncService {
@@ -245,49 +246,57 @@ class HealthSyncService {
 
         /// Save new data if not duplicate OR forced
         if (!isDuplicate || forceSave) {
+           final nowStr = now.toIso8601String();
           if (selectedHealthTypes.contains('STEPS')) {
+            final encrypted =
+                await EncryptService.encryptText(steps.toString());
             await FirebaseFirestore.instance.collection('steps').add({
-              'value': steps,
-              'synced_at': now.toIso8601String(),
+              'value': encrypted['data'],
+              'iv': encrypted['iv'],
+              'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
           if (selectedHealthTypes.contains('HEART_RATE')) {
+            final encrypted =
+                await EncryptService.encryptText(heartRate.toString());
+
             await FirebaseFirestore.instance.collection('heart_rate').add({
-              'value': heartRate,
+              'data': encrypted['data'],
+              // 'value': heartRate,
+              'iv': encrypted['iv'],
               'abnormal': isAbnormalHR,
-              'synced_at': now.toIso8601String(),
+              'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
           if (selectedHealthTypes.contains('BLOOD_PRESSURE')) {
+               final encrypted =
+                await EncryptService.encryptText(systolic.toString());
             await FirebaseFirestore.instance.collection('blood_pressure').add({
-              'systolic': {
-                'value': systolic,
-                'abnormal': isAbnormalBP,
-              },
-              'diastolic': {
-                'value': diastolic,
-                'abnormal': isAbnormalBP,
-              },
-              'synced_at': now.toIso8601String(),
+              'systolic': {'value': encrypted['data'], 'iv': encrypted['iv'], 'abnormal': isAbnormalBP},
+              'diastolic': {'value': encrypted['data'], 'iv': encrypted['iv'], 'abnormal': isAbnormalBP},
+              'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
           if (selectedHealthTypes.contains('BLOOD_GLUCOSE')) {
+               final encrypted =
+                await EncryptService.encryptText(bloodGlucose.toString());
             await FirebaseFirestore.instance.collection('blood_glucose').add({
-              'value': bloodGlucose,
+              'value': encrypted['data'],
+              'iv': encrypted['iv'],
               'abnormal': isAbnormalGlucose,
-              'synced_at': now.toIso8601String(),
+              'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
           // Update last sync time
-          await prefs.setString(lastSyncKey, now.toIso8601String());
+         await prefs.setString(lastSyncKey, nowStr);
         }
       }
     } catch (e) {
