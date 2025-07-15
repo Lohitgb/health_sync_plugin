@@ -7,20 +7,20 @@ import 'services/health_history_service.dart';
 
 class HealthSyncPlugin {
   static Future<void> startForegroundService() async {
-    print("🟡 initForegroundTask called");
+    // print("🟡 initForegroundTask called");
     await ForegroundTaskService.init();
 
-    print("🟡 ensurePermissions called");
+    // print("🟡 ensurePermissions called");
     await ForegroundTaskService.ensurePermissions();
 
-    print("🟢 Starting foreground service...");
+    // print("🟢 Starting foreground service...");
     await FlutterForegroundTask.startService(
       notificationTitle: 'Noscura Sync Running',
       notificationText: 'health data is syncing in the background.',
       callback: startCallback,
     );
 
-    print("✅ Foreground service started.");
+    // print("✅ Foreground service started.");
   }
 
   static Future<void> startSyncNow() async {
