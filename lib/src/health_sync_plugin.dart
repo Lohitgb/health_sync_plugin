@@ -31,7 +31,7 @@ class HealthSyncPlugin {
     await HealthAverageService.storeDailyAverages();
   }
 
-  static Future<List<String>> getAvailableProviders() async {
+  static Future<List<Map<String, String>>> getAvailableProviders() async {
     return await HealthConnectProvidersService.getAvailableProviders();
   }
 

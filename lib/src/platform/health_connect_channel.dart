@@ -1,14 +1,17 @@
 import 'package:flutter/services.dart';
 
-/// Wrapper for native method channel to fetch installed Health Connect-compatible apps
 class HealthConnectProvidersService {
   static const MethodChannel _channel =
       MethodChannel('health_connect_providers');
 
-  /// Returns a list of provider app names (e.g., Google Fit, Samsung Health)
-  static Future<List<String>> getAvailableProviders() async {
+  /// Returns a list of maps with provider package and name.
+  static Future<List<Map<String, String>>> getAvailableProviders() async {
     final List<dynamic> providers =
         await _channel.invokeMethod('getAvailableProviders');
-    return providers.cast<String>();
+
+    return providers
+        .map((provider) =>
+            Map<String, String>.from(provider as Map<dynamic, dynamic>))
+        .toList();
   }
 }

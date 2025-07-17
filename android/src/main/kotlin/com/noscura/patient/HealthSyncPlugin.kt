@@ -1,17 +1,23 @@
 package com.noscura.patient
 
-import android.content.Context
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 
-class HealthSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class HealthSyncPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
-    private lateinit var context: Context
-    private lateinit var channel: MethodChannel
+    private lateinit var channelProviders: MethodChannel
+    private lateinit var channelOpen: MethodChannel
+    private var activity: Activity? = null
+    private var packageManager: PackageManager? = null
 
     private val knownHealthApps = mapOf(
         "com.google.android.apps.fitness" to "Google Fit",
@@ -33,10 +39,12 @@ class HealthSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         "com.oneplus.health" to "OHealth"
     )
 
-    override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-        context = binding.applicationContext
-        channel = MethodChannel(binding.binaryMessenger, "health_connect_providers")
-        channel.setMethodCallHandler(this)
+    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        channelProviders = MethodChannel(flutterPluginBinding.binaryMessenger, "health_connect_providers")
+        channelProviders.setMethodCallHandler(this)
+
+        channelOpen = MethodChannel(flutterPluginBinding.binaryMessenger, "health_connect_channel")
+        channelOpen.setMethodCallHandler(this)
     }
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result) {
@@ -45,35 +53,73 @@ class HealthSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 val providers = getInstalledHealthConnectApps()
                 result.success(providers)
             }
+            "openHealthConnect" -> {
+                try {
+                    val intent = packageManager?.getLaunchIntentForPackage("com.google.android.apps.healthdata")
+                    if (intent != null) {
+                        activity?.startActivity(intent)
+                        result.success(true)
+                    } else {
+                        val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+                            setPackage("com.android.vending")
+                        }
+                        activity?.startActivity(playStoreIntent)
+                        result.success(false)
+                    }
+                } catch (e: Exception) {
+                    result.success(false)
+                }
+            }
             else -> result.notImplemented()
         }
     }
 
-    private fun getInstalledHealthConnectApps(): List<String> {
-        val pm = context.packageManager
+    private fun getInstalledHealthConnectApps(): List<Map<String, String>> {
         val intent = Intent("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE")
-        val resolveInfoList = pm.queryIntentActivities(intent, 0)
-        val installedProviders = mutableListOf<String>()
+        val resolveInfoList = packageManager?.queryIntentActivities(intent, 0) ?: emptyList()
+        val installedProviders = mutableListOf<Map<String, String>>()
 
         for (info in resolveInfoList) {
             val packageName = info.activityInfo.packageName
-            val displayName = knownHealthApps[packageName] ?: getAppName(pm, packageName)
-            installedProviders.add(displayName)
+            val displayName = knownHealthApps[packageName] ?: getAppName(packageName)
+            installedProviders.add(mapOf("package" to packageName, "name" to displayName))
         }
 
-        return installedProviders.distinct().sorted()
+        return installedProviders
     }
 
-    private fun getAppName(pm: PackageManager, packageName: String): String {
+    private fun getAppName(packageName: String): String {
         return try {
-            val appInfo = pm.getApplicationInfo(packageName, 0)
-            pm.getApplicationLabel(appInfo).toString()
+            val appInfo = packageManager?.getApplicationInfo(packageName, 0)
+            packageManager?.getApplicationLabel(appInfo!!)?.toString() ?: packageName
         } catch (e: PackageManager.NameNotFoundException) {
             packageName
         }
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-        channel.setMethodCallHandler(null)
+        channelProviders.setMethodCallHandler(null)
+        channelOpen.setMethodCallHandler(null)
+    }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        packageManager = activity?.packageManager
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        activity = null
+        packageManager = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        packageManager = activity?.packageManager
+    }
+
+    override fun onDetachedFromActivity() {
+        activity = null
+        packageManager = null
     }
 }
