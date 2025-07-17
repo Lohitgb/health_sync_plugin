@@ -1,10 +1,11 @@
 import 'dart:isolate';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:health_sync_plugin/health_sync_plugin.dart';
 import 'package:health_sync_plugin_example/health_history_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+// import 'package:url_launcher/url_launcher.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -19,33 +20,49 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> selectedProviders = [];
 
   final Map<String, List<String>> manualSupportedHealthTypes = {
-    'Google Fit': ['STEPS', 'HEART_RATE', 'BLOOD_PRESSURE', 'GLUCOSE'],
-    'Samsung Health': ['STEPS', 'HEART_RATE', 'BLOOD_PRESSURE', 'GLUCOSE'],
-    'iHealth': ['HEART_RATE', 'BLOOD_PRESSURE', 'GLUCOSE'],
-    'Withings Health Mate': ['HEART_RATE', 'GLUCOSE'],
-    'Zepp App': ['HEART_RATE', 'STEPS'],
-    'Polar Flow': ['HEART_RATE', 'STEPS'],
-    'COROS': ['HEART_RATE', 'STEPS'],
-    'Suunto': ['HEART_RATE', 'STEPS'],
-    'Oura': ['HEART_RATE', 'STEPS'],
-    'Ultrahuman': ['HEART_RATE', 'GLUCOSE'],
-    'Circular Ring': ['HEART_RATE', 'STEPS'],
-    'Omron': ['BLOOD_PRESSURE', 'GLUCOSE'],
-    'Dexcom': ['GLUCOSE'],
-    'EufyLife': ['HEART_RATE', 'BLOOD_PRESSURE'],
-    'Qardio': ['BLOOD_PRESSURE'],
-    'Fitbit': ['STEPS', 'HEART_RATE', 'BLOOD_PRESSURE'],
-    'OHealth': ['STEPS', 'HEART_RATE', 'BLOOD_PRESSURE'],
+    'com.google.android.apps.fitness': [
+      'STEPS',
+      'HEART_RATE',
+      'BLOOD_PRESSURE',
+      'GLUCOSE'
+    ],
+    'com.sec.android.app.shealth': [
+      'STEPS',
+      'HEART_RATE',
+      'BLOOD_PRESSURE',
+      'GLUCOSE'
+    ],
+    'com.ihealthlabs.MyVitalsPro': ['HEART_RATE', 'BLOOD_PRESSURE', 'GLUCOSE'],
+    'com.withings.wiscale2': ['HEART_RATE', 'GLUCOSE'],
+    'com.huami.watch.hmwatchmanager': ['HEART_RATE', 'STEPS'], // Zepp
+    'com.polar.flow': ['HEART_RATE', 'STEPS'],
+    'com.reactor.cocos': ['HEART_RATE', 'STEPS'], // COROS
+    'com.suunto.movescount': ['HEART_RATE', 'STEPS'],
+    'com.oura.android': ['HEART_RATE', 'STEPS'],
+    'com.ultrahuman.ultrahuman': ['HEART_RATE', 'GLUCOSE'],
+    'ring.circular.circular': ['HEART_RATE', 'STEPS'],
+    'jp.co.omron.healthcare.omronconnect': ['BLOOD_PRESSURE', 'GLUCOSE'],
+    'com.dexcom.g7': ['GLUCOSE'],
+    'com.eufylife.tuner': ['HEART_RATE', 'BLOOD_PRESSURE'],
+    'com.getqardio.android': ['BLOOD_PRESSURE'],
+    'com.fitbit.FitbitMobile': ['STEPS', 'HEART_RATE', 'BLOOD_PRESSURE'],
+    'com.health.ohealth': ['STEPS', 'HEART_RATE', 'BLOOD_PRESSURE'],
   };
 
   Future<void> _openHealthConnect() async {
-    final uri = Uri.parse('android-app://com.google.android.apps.healthdata');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
+    const platform = MethodChannel('health_connect_channel');
+
+    try {
+      final bool result = await platform.invokeMethod('openHealthConnect');
+      if (!result && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Health Connect app not available.')),
+        );
+      }
+    } on PlatformException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening Health Connect: ${e.message}')),
         );
       }
     }
@@ -53,8 +70,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _showAvailableProviders() async {
     try {
-      final providers =
+      final List<dynamic> rawProviders =
           await HealthConnectProvidersService.getAvailableProviders();
+
+      final List<Map<String, String>> providers =
+          rawProviders.cast<Map<dynamic, dynamic>>().map((e) {
+        return {
+          'package': e['package'] as String,
+          'name': e['name'] as String,
+        };
+      }).toList();
+
       final prefs = await SharedPreferences.getInstance();
       final previouslySelected =
           prefs.getStringList('selected_providers') ?? [];
@@ -62,7 +88,6 @@ class _MyHomePageState extends State<MyHomePage> {
       List<String> tempSelected = List.from(previouslySelected);
 
       showDialog(
-        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setStateDialog) => AlertDialog(
@@ -75,17 +100,18 @@ class _MyHomePageState extends State<MyHomePage> {
                       shrinkWrap: true,
                       itemCount: providers.length,
                       itemBuilder: (context, index) {
-                        final provider = providers[index];
-                        final isSelected = tempSelected.contains(provider);
+                        final packageName = providers[index]['package']!;
+                        final displayName = providers[index]['name']!;
+                        final isSelected = tempSelected.contains(packageName);
                         return CheckboxListTile(
                           value: isSelected,
-                          title: Text(provider),
+                          title: Text(displayName),
                           onChanged: (checked) {
                             setStateDialog(() {
                               if (checked == true) {
-                                tempSelected.add(provider);
+                                tempSelected.add(packageName);
                               } else {
-                                tempSelected.remove(provider);
+                                tempSelected.remove(packageName);
                               }
                             });
                           },
@@ -141,7 +167,6 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
   }
-
   Future<void> _showHealthTypeSelectionDialog() async {
     final prefs = await SharedPreferences.getInstance();
 
