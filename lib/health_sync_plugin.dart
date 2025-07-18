@@ -8,3 +8,4 @@ export 'src/platform/health_connect_channel.dart';
 export 'src/services/foreground_task_service.dart';
 export 'src/background/health_sync_task_handler.dart';
 export 'src/services/health_history_service.dart';
+export 'src/services/open_health_connect.dart';
