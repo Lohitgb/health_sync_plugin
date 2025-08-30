@@ -1,5 +1,5 @@
+
 import 'package:health/health.dart';
-import 'package:health_sync_plugin/src/helper/encrypt_decrypt_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -61,32 +61,15 @@ class HealthAverageService {
     // Calculate averages
     final Map<String, dynamic> avgMap = {};
 
-    // void addAverage(String label, List<double> values) {
-    //   if (values.isNotEmpty) {
-    //     avgMap[label] = values.reduce((a, b) => a + b) / values.length;
-    //   }
-    // }
-
     if (selectedHealthTypes.contains('HEART_RATE')) {
       final hr = filteredData
           .where((d) => d.type == HealthDataType.HEART_RATE)
           .map((d) => (d.value as NumericHealthValue).numericValue.toDouble())
           .toList();
       if (hr.isNotEmpty) {
-        final heartRateAvg = hr.reduce((a, b) => a + b) / hr.length;
-
-        // Encrypt the average value as string
-        final encrypted =
-            await EncryptService.encryptText(heartRateAvg.toString());
-
-        // Store encrypted data and IV separately in Firestore-compatible format
-        avgMap['heart_rate_avg'] = {
-          'data': encrypted['data'],
-          'iv': encrypted['iv'],
-        };
+        avgMap['heart_rate_avg'] =
+            hr.reduce((a, b) => a + b) / hr.length;
       }
-
-      // addAverage('heart_rate_avg', hr);
     }
 
     if (selectedHealthTypes.contains('STEPS')) {
@@ -95,16 +78,9 @@ class HealthAverageService {
           .map((d) => (d.value as NumericHealthValue).numericValue.toDouble())
           .toList();
       if (steps.isNotEmpty) {
-        final stepsAvg = steps.reduce((a, b) => a + b) / steps.length;
-        final encrypted = await EncryptService.encryptText(stepsAvg.toString());
-
-        avgMap['steps_avg'] = {
-          'data': encrypted['data'],
-          'iv': encrypted['iv'],
-        };
+        avgMap['steps_avg'] =
+            steps.reduce((a, b) => a + b) / steps.length;
       }
-
-      // addAverage('steps_avg', steps);
     }
 
     if (selectedHealthTypes.contains('BLOOD_PRESSURE')) {
@@ -118,30 +94,14 @@ class HealthAverageService {
           .toList();
 
       if (systolic.isNotEmpty) {
-        final systolicAvg = systolic.reduce((a, b) => a + b) / systolic.length;
-        final encrypted =
-            await EncryptService.encryptText(systolicAvg.toString());
-
-        avgMap['bp_systolic_avg'] = {
-          'data': encrypted['data'],
-          'iv': encrypted['iv'],
-        };
+        avgMap['bp_systolic_avg'] =
+            systolic.reduce((a, b) => a + b) / systolic.length;
       }
 
       if (diastolic.isNotEmpty) {
-        final diastolicAvg =
+        avgMap['bp_diastolic_avg'] =
             diastolic.reduce((a, b) => a + b) / diastolic.length;
-        final encrypted =
-            await EncryptService.encryptText(diastolicAvg.toString());
-
-        avgMap['bp_diastolic_avg'] = {
-          'data': encrypted['data'],
-          'iv': encrypted['iv'],
-        };
       }
-
-      // addAverage('bp_systolic_avg', systolic);
-      // addAverage('bp_diastolic_avg', diastolic);
     }
 
     if (selectedHealthTypes.contains('BLOOD_GLUCOSE')) {
@@ -150,17 +110,9 @@ class HealthAverageService {
           .map((d) => (d.value as NumericHealthValue).numericValue.toDouble())
           .toList();
       if (glucose.isNotEmpty) {
-        final glucoseAvg = glucose.reduce((a, b) => a + b) / glucose.length;
-        final encrypted =
-            await EncryptService.encryptText(glucoseAvg.toString());
-
-        avgMap['glucose_avg'] = {
-          'data': encrypted['data'],
-          'iv': encrypted['iv'],
-        };
+        avgMap['glucose_avg'] =
+            glucose.reduce((a, b) => a + b) / glucose.length;
       }
-
-      // addAverage('glucose_avg', glucose);
     }
 
     // Store result in Firestore

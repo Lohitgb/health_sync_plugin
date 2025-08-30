@@ -1,6 +1,7 @@
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:health/health.dart';
-import 'package:health_sync_plugin/src/helper/encrypt_decrypt_service.dart';
+// import 'package:health_sync_plugin/src/helper/encrypt_decrypt_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HealthSyncService {
@@ -19,29 +20,22 @@ class HealthSyncService {
     final health = Health();
     final prefs = await SharedPreferences.getInstance();
 
-    // Support multiple providers from shared_preferences
     final selectedProviders = prefs.getStringList('selected_providers') ?? [];
-
-    // Fallback for old single-provider storage
     final selectedProvider = prefs.getString('selected_provider');
 
-    // Final list of providers to consider
     final List<String> effectiveProviders = selectedProviders.isNotEmpty
         ? selectedProviders
         : (selectedProvider != null ? [selectedProvider] : []);
 
-    // Load selected health types from preferences
     final selectedHealthTypes =
         prefs.getStringList('selected_health_types') ?? [];
 
-    // Normal threshold constants
     const int normalHeartRateMin = 60;
     const int normalHeartRateMax = 100;
     const int normalSystolicMax = 130;
     const int normalDiastolicMax = 85;
     const double normalBloodGlucoseMax = 140.0;
 
-    // Health data types we want to access
     final types = <HealthDataType>[];
     if (selectedHealthTypes.contains('STEPS')) {
       types.add(HealthDataType.STEPS);
@@ -59,7 +53,6 @@ class HealthSyncService {
 
     final permissions = List.filled(types.length, HealthDataAccess.READ);
 
-    // Check and request permissions if not granted
     bool? hasPermission =
         await health.hasPermissions(types, permissions: permissions);
 
@@ -72,7 +65,6 @@ class HealthSyncService {
 
     final now = DateTime.now();
 
-    // Use a key based on selected providers to track last sync
     final lastSyncKey =
         'last_sync_time_${effectiveProviders.join("_") == "" ? "default" : effectiveProviders.join("_")}';
     final lastSyncStr = prefs.getString(lastSyncKey);
@@ -82,19 +74,15 @@ class HealthSyncService {
         : DateTime(now.year, now.month, now.day);
 
     try {
-      /// Keep track of all detected sources
       final Set<String> detectedSources = {};
 
-      /// Function to filter data points based on selected providers
       bool isFromSelectedProviders(HealthDataPoint data) {
         final source = data.sourceName.toLowerCase();
         detectedSources.add(source);
-
         if (effectiveProviders.isEmpty) return true;
         return effectiveProviders.any((p) => source.contains(p.toLowerCase()));
       }
 
-      /// ========== STEPS ==========
       int steps = 0;
       if (selectedHealthTypes.contains('STEPS')) {
         final stepData = await health.getHealthDataFromTypes(
@@ -103,7 +91,6 @@ class HealthSyncService {
           types: [HealthDataType.STEPS],
         );
         await health.removeDuplicates(stepData);
-
         for (var data in stepData) {
           if (data.value is NumericHealthValue &&
               isFromSelectedProviders(data)) {
@@ -112,7 +99,6 @@ class HealthSyncService {
         }
       }
 
-      /// ========== HEART RATE ==========
       int heartRate = 0;
       bool hrAbnormalFromAny = false;
       if (selectedHealthTypes.contains('HEART_RATE')) {
@@ -139,11 +125,9 @@ class HealthSyncService {
         }
       }
 
-      /// ========== BLOOD PRESSURE ==========
       int? systolic;
       int? diastolic;
       bool bpAbnormalFromAny = false;
-
       if (selectedHealthTypes.contains('BLOOD_PRESSURE')) {
         final bpSystolicData = await health.getHealthDataFromTypes(
           startTime: startTime,
@@ -188,7 +172,6 @@ class HealthSyncService {
         }
       }
 
-      /// ========== BLOOD GLUCOSE ==========
       double? bloodGlucose;
       bool glucoseAbnormalFromAny = false;
       if (selectedHealthTypes.contains('BLOOD_GLUCOSE')) {
@@ -216,7 +199,6 @@ class HealthSyncService {
         }
       }
 
-      /// Save to Firestore only if abnormal OR forced manually
       final bool isAbnormalHR = hrAbnormalFromAny;
       final bool isAbnormalBP = bpAbnormalFromAny;
       final bool isAbnormalGlucose = glucoseAbnormalFromAny;
@@ -244,28 +226,22 @@ class HealthSyncService {
               bloodGlucose == lastGlucose;
         }
 
-        /// Save new data if not duplicate OR forced
         if (!isDuplicate || forceSave) {
-           final nowStr = now.toIso8601String();
+          final nowStr = now.toIso8601String();
+
           if (selectedHealthTypes.contains('STEPS')) {
-            final encrypted =
-                await EncryptService.encryptText(steps.toString());
+            // final encrypted = await EncryptService.encryptText(steps.toString());
             await FirebaseFirestore.instance.collection('steps').add({
-              'value': encrypted['data'],
-              'iv': encrypted['iv'],
+              'value': steps,
               'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
           if (selectedHealthTypes.contains('HEART_RATE')) {
-            final encrypted =
-                await EncryptService.encryptText(heartRate.toString());
-
+            // final encrypted = await EncryptService.encryptText(heartRate.toString());
             await FirebaseFirestore.instance.collection('heart_rate').add({
-              'data': encrypted['data'],
-              // 'value': heartRate,
-              'iv': encrypted['iv'],
+              'value': heartRate,
               'abnormal': isAbnormalHR,
               'synced_at': nowStr,
               'providers': effectiveProviders,
@@ -273,30 +249,32 @@ class HealthSyncService {
           }
 
           if (selectedHealthTypes.contains('BLOOD_PRESSURE')) {
-               final encrypted =
-                await EncryptService.encryptText(systolic.toString());
+            // final encrypted = await EncryptService.encryptText(systolic.toString());
             await FirebaseFirestore.instance.collection('blood_pressure').add({
-              'systolic': {'value': encrypted['data'], 'iv': encrypted['iv'], 'abnormal': isAbnormalBP},
-              'diastolic': {'value': encrypted['data'], 'iv': encrypted['iv'], 'abnormal': isAbnormalBP},
+              'systolic': {
+                'value': systolic,
+                'abnormal': isAbnormalBP,
+              },
+              'diastolic': {
+                'value': diastolic,
+                'abnormal': isAbnormalBP,
+              },
               'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
           if (selectedHealthTypes.contains('BLOOD_GLUCOSE')) {
-               final encrypted =
-                await EncryptService.encryptText(bloodGlucose.toString());
+            // final encrypted = await EncryptService.encryptText(bloodGlucose.toString());
             await FirebaseFirestore.instance.collection('blood_glucose').add({
-              'value': encrypted['data'],
-              'iv': encrypted['iv'],
+              'value': bloodGlucose,
               'abnormal': isAbnormalGlucose,
               'synced_at': nowStr,
               'providers': effectiveProviders,
             });
           }
 
-          // Update last sync time
-         await prefs.setString(lastSyncKey, nowStr);
+          await prefs.setString(lastSyncKey, nowStr);
         }
       }
     } catch (e) {
