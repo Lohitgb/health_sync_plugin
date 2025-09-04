@@ -8,15 +8,21 @@ class HealthHistoryFetcher {
     try {
       final prefs = await SharedPreferences.getInstance();
       final selectedProviders = prefs.getStringList('selected_providers') ?? [];
+      final selectedTypes = prefs.getStringList('selected_types') ?? [];
 
-      // Read all supported types
-      final types = <HealthDataType>[
+      // All supported types
+      final allTypes = <HealthDataType>[
         HealthDataType.HEART_RATE,
-        HealthDataType.STEPS,
+        // HealthDataType.STEPS,
         HealthDataType.BLOOD_GLUCOSE,
         HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
         HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
       ];
+
+      // Filter types if user selected specific ones
+      final types = selectedTypes.isEmpty
+          ? allTypes
+          : allTypes.where((t) => selectedTypes.contains(t.toString().split('.').last)).toList();
 
       final permissions = List.filled(types.length, HealthDataAccess.READ);
 
