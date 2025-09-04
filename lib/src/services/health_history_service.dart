@@ -26,13 +26,6 @@ class HealthHistoryFetcher {
       // Map normalized type names (saved) to HealthDataType enums
       // Note: Blood pressure has SYSTOLIC and DIASTOLIC separately, 
       // so if user selects "BLOOD_PRESSURE", include both.
-      final allTypes = <HealthDataType>[
-        HealthDataType.HEART_RATE,
-        // HealthDataType.STEPS,
-        HealthDataType.BLOOD_GLUCOSE,
-        HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
-        HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
-      ];
 
       List<HealthDataType> typesToRequest = [];
 
