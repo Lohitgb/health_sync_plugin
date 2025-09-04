@@ -12,18 +12,20 @@ class HealthHistoryFetcher {
       final selectedDevices = prefs.getStringList('selected_devices') ?? [];
 
       // Extract unique types from selected_devices
-      final selectedTypes = selectedDevices
+      final selectedTypesRaw = selectedDevices
           .map((e) => jsonDecode(e) as Map<String, dynamic>)
           .map((d) => d['type'] as String)
           .toSet()
           .toList();
 
-      // Return empty if no device types selected or no providers (optional)
-      if (selectedTypes.isEmpty) {
+      // Return empty if no device types selected
+      if (selectedTypesRaw.isEmpty) {
         return [];
       }
 
-      // All supported types
+      // Map normalized type names (saved) to HealthDataType enums
+      // Note: Blood pressure has SYSTOLIC and DIASTOLIC separately, 
+      // so if user selects "BLOOD_PRESSURE", include both.
       final allTypes = <HealthDataType>[
         HealthDataType.HEART_RATE,
         // HealthDataType.STEPS,
@@ -32,18 +34,44 @@ class HealthHistoryFetcher {
         HealthDataType.BLOOD_PRESSURE_DIASTOLIC,
       ];
 
-      // Filter types if user selected specific ones
-      final types = allTypes.where((t) =>
-          selectedTypes.contains(t.toString().split('.').last)).toList();
+      List<HealthDataType> typesToRequest = [];
 
-      final permissions = List.filled(types.length, HealthDataAccess.READ);
+      for (var t in selectedTypesRaw) {
+        switch (t) {
+          case 'HEART_RATE':
+            typesToRequest.add(HealthDataType.HEART_RATE);
+            break;
+          case 'STEPS':
+            typesToRequest.add(HealthDataType.STEPS);
+            break;
+          case 'BLOOD_GLUCOSE':
+            typesToRequest.add(HealthDataType.BLOOD_GLUCOSE);
+            break;
+          case 'BLOOD_PRESSURE':
+            // Expand BP to both systolic and diastolic
+            typesToRequest.add(HealthDataType.BLOOD_PRESSURE_SYSTOLIC);
+            typesToRequest.add(HealthDataType.BLOOD_PRESSURE_DIASTOLIC);
+            break;
+          default:
+            // Optionally handle unknown or custom types here
+            break;
+        }
+      }
 
-      bool? hasPermission =
-          await _health.hasPermissions(types, permissions: permissions);
+      if (typesToRequest.isEmpty) {
+        return [];
+      }
+
+      final permissions = List.filled(typesToRequest.length, HealthDataAccess.READ);
+
+      bool? hasPermission = await _health.hasPermissions(
+        typesToRequest,
+        permissions: permissions,
+      );
 
       if (hasPermission != true) {
         hasPermission = await _health.requestAuthorization(
-          types,
+          typesToRequest,
           permissions: permissions,
         );
       }
@@ -56,12 +84,12 @@ class HealthHistoryFetcher {
       final rawData = await _health.getHealthDataFromTypes(
         startTime: startTime,
         endTime: now,
-        types: types,
+        types: typesToRequest,
       );
 
       await _health.removeDuplicates(rawData);
 
-      // Filter by selected providers (if any)
+      // Filter by selected providers (source names)
       final filtered = rawData.where((data) {
         if (selectedProviders.isEmpty) return true;
         final source = data.sourceName.toLowerCase();
