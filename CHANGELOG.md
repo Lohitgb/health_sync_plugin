@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.12
+## 0.0.13
 
 - Initial release of `health_sync_plugin`.
 - Added functionality to sync health data from Health Connect-compatible apps.
