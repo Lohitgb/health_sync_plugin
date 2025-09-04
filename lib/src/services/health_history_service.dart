@@ -1,5 +1,6 @@
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class HealthHistoryFetcher {
   final Health _health = Health();
@@ -8,7 +9,19 @@ class HealthHistoryFetcher {
     try {
       final prefs = await SharedPreferences.getInstance();
       final selectedProviders = prefs.getStringList('selected_providers') ?? [];
-      final selectedTypes = prefs.getStringList('selected_types') ?? [];
+      final selectedDevices = prefs.getStringList('selected_devices') ?? [];
+
+      // Extract unique types from selected_devices
+      final selectedTypes = selectedDevices
+          .map((e) => jsonDecode(e) as Map<String, dynamic>)
+          .map((d) => d['type'] as String)
+          .toSet()
+          .toList();
+
+      // Return empty if no device types selected or no providers (optional)
+      if (selectedTypes.isEmpty) {
+        return [];
+      }
 
       // All supported types
       final allTypes = <HealthDataType>[
@@ -20,14 +33,14 @@ class HealthHistoryFetcher {
       ];
 
       // Filter types if user selected specific ones
-      final types = selectedTypes.isEmpty
-          ? allTypes
-          : allTypes.where((t) => selectedTypes.contains(t.toString().split('.').last)).toList();
+      final types = allTypes.where((t) =>
+          selectedTypes.contains(t.toString().split('.').last)).toList();
 
       final permissions = List.filled(types.length, HealthDataAccess.READ);
 
       bool? hasPermission =
           await _health.hasPermissions(types, permissions: permissions);
+
       if (hasPermission != true) {
         hasPermission = await _health.requestAuthorization(
           types,
